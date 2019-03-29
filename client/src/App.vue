@@ -26,7 +26,7 @@ export default {
 <style>
 
 #app {
-  background-color: rgba(66, 184, 131, 0.03)
+  background-color: white;/*rgba(66, 184, 131, 0.03)*/
 }
 .alert {
   position: absolute;

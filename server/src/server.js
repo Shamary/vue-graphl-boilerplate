@@ -1,9 +1,11 @@
 // IMPORTS
 import express from 'express'
-import mongoose from 'mongoose'
+//import passport from 'passport'
+//import mongoose from 'mongoose'
 import morgan from 'morgan'
 import cors from 'cors'
 import path from 'path'
+import session from 'express-session'
 /* UNCOMMENT FOR HTTP2
 
 import fs from 'fs'
@@ -19,12 +21,15 @@ import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { graphiqlExpress, graphqlExpress } from 'apollo-server-express'
 import { makeExecutableSchema } from 'graphql-tools'
 
+import auth from '../config/auth'
+import router from '../Router'
+
 // CONFIG
 require('dotenv').config()
 const app = express()
 const PORT = process.env.PORT || 8081
 
-// MONGODB MODELS
+// MYSQL MODELS
 import models from './models'
 
 // GRAPHQL TYPES-RESOLVERS
@@ -32,6 +37,7 @@ const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './graphql/types')))
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './graphql/resolvers')))
 
 // DATABASE CONNECTION
+/*
 mongoose.Promise = global.Promise
 mongoose
     .connect(`YOUR_MONGODB_CONNECTION_STRING`)
@@ -40,18 +46,24 @@ mongoose
         console.log('----------------------------------')
     })
     .catch(err => console.log(`Error connecting to database: ${err}`))
-
+*/
 // LOGGER
 app.use(morgan('dev'))
 
 // CORS
 app.use(cors('*'))
+app.use(express.json())
+
+app.use(session({ secret: 'keyboard cat', cookie: { maxAge: 60000 }, resave: true, saveUninitialized: true}))
+
+app.use(auth.passport.initialize());
+app.use(auth.passport.session());
 
 // SERVE STATIC FILES
 app.use(serveStatic(__dirname + "/dist"));
 app.use('*', serveStatic(__dirname + "/dist"))
 // app.use(favicon(path.join(__dirname, 'dist', 'static', 'favicon.png')))
-
+app.use(router)
 
 // GRAPHQL SETUP
 const schema = makeExecutableSchema({
@@ -59,7 +71,9 @@ const schema = makeExecutableSchema({
   resolvers
 })
 
-app.use('/graphql', express.json(), graphqlExpress({ schema, context: models }))
+app.use('/graphql', express.json(), auth.isAuth, graphqlExpress( (req,res) => { return {
+    schema, context: {db: models, req: req, res: res} }
+  }))
 app.use('/graphiql', graphiqlExpress({
     endpointURL: '/graphql',
     subscriptionsEndpoint: `ws://localhost:8081/subscriptions`
